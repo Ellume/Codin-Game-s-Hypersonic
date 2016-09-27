@@ -18,33 +18,33 @@ class Game
         int width = int.Parse(inputs[0]);
         int height = int.Parse(inputs[1]);
         int myId = int.Parse(inputs[2]);
-
+        
         Player[] players = new Player[4];
         for (int i = 0; i < 4; i++) players[i] = new Player();
-
+        
         List<Bomb> bombs = new List<Bomb>();
-
+        
         // Base Grid
         char[][] grid = new char[height][];
         for (int i = 0; i < height; i++) grid[i] = new char[width];
-
+        
         // Bomb Value Grid
         char[][] gridValue = new char[height][];
         for (int i = 0; i < height; i++) gridValue[i] = new char[width];
-
+        
 
         // game loop
         while (true)
         {
-            string output = "";
+            string output="";
             int value = 0;
-
+            
             // Update grid
             for (int i = 0; i < height; i++)
             {
                 grid[i] = Console.ReadLine().ToCharArray();
             }
-
+            
             // Update players & bombs
             bombs.Clear();
             int entities = int.Parse(Console.ReadLine());
@@ -57,18 +57,18 @@ class Game
                 int y = int.Parse(inputs[3]);
                 int param1 = int.Parse(inputs[4]);
                 int param2 = int.Parse(inputs[5]);
-
+                
                 //if (param1 == 8) Console.Error.WriteLine("WOOOOOOOOOOOOOOO!!!!");
                 // Console.Error.WriteLine("
-
+                
                 if (entityType == 0) players[owner].Update(x, y, param1, param2);
                 else if (entityType == 1)
                 {
                     bombs.Add(new Bomb());
-                    bombs[bombs.Count - 1].Update(x, y, param1, param2);
+                    bombs[bombs.Count-1].Update(x, y, param1, param2);
                 }
                 else if (entityType == 2) players[owner].Update(x, y, param1, param2);
-
+                
             }
 
             // Find location for next bomb
@@ -78,16 +78,22 @@ class Game
                 {
                     if (Calcs.BombValue(j, i, 3, grid) > value && grid[i][j] != '0')
                     {
-                        output = "BOMB " + j + " " + i;
+                        output = "BOMB "+j+" "+i;
                         value = Calcs.BombValue(j, i, 3, grid);
                     }
                 }
             }
+            
+            
+            gridValue = Calcs.BombValueTable(grid, players[myId].GetBombRange());
 
-
-            gridValue = Calcs.BombValueTable(grid, 3);
-
-            Calcs.DebugDisplayGrid(grid);
+            
+            //Calcs.DebugDisplayGrid(grid);
+            Calcs.DebugDisplayGrid(gridValue);
+            foreach (Bomb bomb in bombs)
+            {
+                gridValue = Calcs.AddBombExplosion(gridValue, bomb);
+            }
             Calcs.DebugDisplayGrid(gridValue);
 
 
@@ -109,7 +115,7 @@ class Player
     int y;
     int bombNum;
     int bombRange;
-
+    
     public void Update(int X, int Y, int PARAM1, int PARAM2)
     {
         x = X;
@@ -117,22 +123,22 @@ class Player
         bombNum = PARAM1;
         bombRange = PARAM2;
     }
-
+    
     public int GetX()
     {
         return x;
     }
-
+    
     public int GetY()
     {
         return y;
     }
-
+    
     public int GetBombNum()
     {
         return bombNum;
     }
-
+    
     public int GetBombRange()
     {
         return bombRange;
@@ -151,7 +157,7 @@ class Bomb
     int y;
     int bombTimer;
     int bombRange;
-
+    
     public void Update(int X, int Y, int PARAM1, int PARAM2)
     {
         x = X;
@@ -159,22 +165,22 @@ class Bomb
         bombTimer = PARAM1;
         bombRange = PARAM2;
     }
-
+    
     public int GetX()
     {
         return x;
     }
-
+    
     public int GetY()
     {
         return y;
     }
-
+    
     public int GetTimer()
     {
         return bombTimer;
     }
-
+    
     public int GetRange()
     {
         return bombRange;
@@ -193,7 +199,7 @@ class Item
     int y;
     int itemType;
     int itemUnknown;
-
+    
     public void Update(int X, int Y, int PARAM1, int PARAM2)
     {
         x = X;
@@ -201,22 +207,22 @@ class Item
         itemType = PARAM1;
         itemUnknown = PARAM2;
     }
-
+    
     public int GetX()
     {
         return x;
     }
-
+    
     public int GetY()
     {
         return y;
     }
-
+    
     public int GetItemType()
     {
         return itemType;
     }
-
+    
     public int GetUnknown()
     {
         return itemUnknown;
@@ -231,75 +237,114 @@ class Item
  **/
 class Calcs
 {
-
+    
     // Check for value of items in boxes
     public static int BombValue(int x, int y, int bombRange, char[][] grid)
-    {
+    {  
         int output = 0;
-
+        
         // Down
-        for (int i = Math.Min(y + 1, grid.Length); i < Math.Min(y + bombRange, grid.Length); i++)
+        for (int i = Math.Min(y+1,grid.Length); i < Math.Min(y+bombRange,grid.Length); i++)
         {
             if (grid[i][x] != '.')
             {
                 if (grid[i][x] != 'X') output += (int)Char.GetNumericValue(grid[i][x]);
                 break;
             }
+        }
+        
+        // Right
+        for (int i = Math.Min(x+1,grid[y].Length); i < Math.Min(x+bombRange,grid[y].Length); i++)
+        {
+            if (grid[y][i] != '.')
+            {
+                if (grid[y][i] != 'X') output += (int)Char.GetNumericValue(grid[y][i]);
+                break;
+            }
+        }
+        
+        // Up
+        for (int i = Math.Max(y-1,0); i > Math.Max(y-bombRange,-1); i--)
+        {
+            if (grid[i][x] != '.')
+            {
+                if (grid[i][x] != 'X') output += (int)Char.GetNumericValue(grid[i][x]);
+                break;
+            }
+        }
+        
+        // Left
+        for (int i = Math.Max(x-1,0); i > Math.Max(x-bombRange,-1); i--)
+        {
+            if (grid[y][i] != '.')
+            {
+                if (grid[y][i] != 'X') output += (int)Char.GetNumericValue(grid[y][i]);
+                break;
+            }
+        }
+        
+        return output;
+        
+    }
+    
+    
+    
+    // Add Bomb explosion as Xs to grid
+    public static char[][] AddBombExplosion(char[][] grid, Bomb bomb)
+    {
+        char[][] output = grid;
+
+        int x = bomb.GetX();
+        int y = bomb.GetY();
+        int bombRange = bomb.GetRange();
+
+        // Down
+        for (int i = Math.Min(y, grid.Length-1); i < Math.Min(y + bombRange, grid.Length); i++)
+        {
+            if (grid[i][x] == 'X') break;
+            output[i][x] = 'X';
         }
 
         // Right
         for (int i = Math.Min(x + 1, grid[y].Length); i < Math.Min(x + bombRange, grid[y].Length); i++)
         {
-            if (grid[y][i] != '.')
-            {
-                if (grid[y][i] != 'X') output += (int)Char.GetNumericValue(grid[y][i]);
-                break;
-            }
+            if (grid[y][i] == 'X') break;
+            output[y][i] = 'X';
         }
 
         // Up
-        for (int i = Math.Max(y - 1, 0); i > Math.Max(y - bombRange, 0); i--)
+        for (int i = Math.Max(y - 1, 0); i > Math.Max(y - bombRange, -1); i--)
         {
-            if (grid[i][x] != '.')
-            {
-                if (grid[i][x] != 'X') output += (int)Char.GetNumericValue(grid[i][x]);
-                break;
-            }
+            if (grid[i][x] == 'X') break;
+            output[i][x] = 'X';
         }
 
         // Left
-        for (int i = Math.Max(x - 1, 0); i > Math.Max(x - bombRange, 0); i--)
+        for (int i = Math.Max(x - 1, 0); i > Math.Max(x - bombRange, -1); i--)
         {
-            if (grid[y][i] != '.')
-            {
-                if (grid[y][i] != 'X') output += (int)Char.GetNumericValue(grid[y][i]);
-                break;
-            }
+            if (grid[y][i] == 'X') break;
+            output[y][i] = 'X';
         }
 
         return output;
-
     }
 
-
-
-
-
+    
+    
     // Calc Bomb Value Table
     public static char[][] BombValueTable(char[][] grid, int bombRange)
     {
-
+        
         char[][] output = new char[grid.Length][];
         for (int i = 0; i < grid.Length; i++) output[i] = new char[grid[i].Length];
-
+        
         for (int i = 0; i < grid.Length; i++)
         {
             for (int j = 0; j < grid[i].Length; j++)
             {
                 if (grid[i][j] == '.')
                 {
-                    output[i][j] = Convert.ToChar(Calcs.BombValue(j, i, bombRange, grid));
-                    //Console.Error.WriteLine(Calcs.BombValue(j, i, bombRange, grid));
+                    output[i][j] = char.Parse(Calcs.BombValue(j, i, bombRange, grid).ToString());
                 }
                 else
                 {
@@ -307,7 +352,7 @@ class Calcs
                 }
             }
         }
-
+            
         return output;
     }
 
@@ -316,6 +361,7 @@ class Calcs
     // Debug Display Grid
     public static void DebugDisplayGrid(char[][] grid)
     {
+        Console.Error.WriteLine("Debug Table");
         for (int i = 0; i < grid.Length; i++)
         {
             for (int j = 0; j < grid[i].Length; j++)
@@ -325,5 +371,5 @@ class Calcs
             Console.Error.WriteLine("");
         }
     }
-
+    
 }
