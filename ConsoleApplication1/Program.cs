@@ -1,4 +1,5 @@
-﻿using System;
+﻿
+using System;
 using System.Linq;
 using System.IO;
 using System.Text;
@@ -18,33 +19,36 @@ class Game
         int width = int.Parse(inputs[0]);
         int height = int.Parse(inputs[1]);
         int myId = int.Parse(inputs[2]);
-        
+
         Player[] players = new Player[4];
         for (int i = 0; i < 4; i++) players[i] = new Player();
-        
+
         List<Bomb> bombs = new List<Bomb>();
-        
+
         // Base Grid
         char[][] grid = new char[height][];
         for (int i = 0; i < height; i++) grid[i] = new char[width];
-        
+
         // Bomb Value Grid
         char[][] gridValue = new char[height][];
         for (int i = 0; i < height; i++) gridValue[i] = new char[width];
-        
+
+        // Walkable Grid
+        char[][] gridWalkable = new char[height][];
+        for (int i = 0; i < height; i++) gridValue[i] = new char[width];
 
         // game loop
         while (true)
         {
-            string output="";
+            string output = "";
             int value = 0;
-            
+
             // Update grid
             for (int i = 0; i < height; i++)
             {
                 grid[i] = Console.ReadLine().ToCharArray();
             }
-            
+
             // Update players & bombs
             bombs.Clear();
             int entities = int.Parse(Console.ReadLine());
@@ -57,45 +61,57 @@ class Game
                 int y = int.Parse(inputs[3]);
                 int param1 = int.Parse(inputs[4]);
                 int param2 = int.Parse(inputs[5]);
-                
+
                 //if (param1 == 8) Console.Error.WriteLine("WOOOOOOOOOOOOOOO!!!!");
                 // Console.Error.WriteLine("
-                
+
                 if (entityType == 0) players[owner].Update(x, y, param1, param2);
                 else if (entityType == 1)
                 {
                     bombs.Add(new Bomb());
-                    bombs[bombs.Count-1].Update(x, y, param1, param2);
+                    bombs[bombs.Count - 1].Update(x, y, param1, param2);
                 }
                 else if (entityType == 2) players[owner].Update(x, y, param1, param2);
-                
+
             }
+
+
+
+
+            gridValue = Calcs.BombValueGrid(grid, players[myId].GetBombRange());
+
+            //Calcs.DebugDisplayGrid(grid);
+            //Calcs.DebugDisplayGrid(gridValue);
+            foreach (Bomb bomb in bombs)
+            {
+                gridValue = Calcs.AddBombExplosion(gridValue, bomb.GetX(), bomb.GetY(), bomb.GetRange());
+            }
+
+
+            gridWalkable = Calcs.WalkableGrid(gridValue, players[myId].GetX(), players[myId].GetY());
+            
+            //Calcs.DebugDisplayGrid(Calcs.WalkableGrid(grid, players[myId].GetX(), players[myId].GetY()));
+
 
             // Find location for next bomb
             for (int i = 0; i < height; i++)
             {
                 for (int j = 0; j < width; j++)
                 {
-                    if (Calcs.BombValue(j, i, 3, grid) > value && grid[i][j] != '0')
+                    if (gridValue[i][j] > value && Calcs.ValidBomb(gridValue, gridWalkable, players[myId].GetX(), players[myId].GetY(), players[myId].GetBombRange()) == true)
                     {
-                        output = "BOMB "+j+" "+i;
-                        value = Calcs.BombValue(j, i, 3, grid);
+                        
+
+                        if (players[myId].GetX() == j && players[myId].GetY() == i)
+                        {
+                            output = "BOMB " + j + " " + i;
+                        }
+                        output = "MOVE " + j + " " + i;
+                        value = gridValue[i][j];
                     }
                 }
             }
             
-            
-            gridValue = Calcs.BombValueTable(grid, players[myId].GetBombRange());
-
-            
-            //Calcs.DebugDisplayGrid(grid);
-            Calcs.DebugDisplayGrid(gridValue);
-            foreach (Bomb bomb in bombs)
-            {
-                gridValue = Calcs.AddBombExplosion(gridValue, bomb);
-            }
-            Calcs.DebugDisplayGrid(gridValue);
-
 
             Console.WriteLine(output);
         }
@@ -115,7 +131,7 @@ class Player
     int y;
     int bombNum;
     int bombRange;
-    
+
     public void Update(int X, int Y, int PARAM1, int PARAM2)
     {
         x = X;
@@ -123,22 +139,22 @@ class Player
         bombNum = PARAM1;
         bombRange = PARAM2;
     }
-    
+
     public int GetX()
     {
         return x;
     }
-    
+
     public int GetY()
     {
         return y;
     }
-    
+
     public int GetBombNum()
     {
         return bombNum;
     }
-    
+
     public int GetBombRange()
     {
         return bombRange;
@@ -157,7 +173,7 @@ class Bomb
     int y;
     int bombTimer;
     int bombRange;
-    
+
     public void Update(int X, int Y, int PARAM1, int PARAM2)
     {
         x = X;
@@ -165,22 +181,22 @@ class Bomb
         bombTimer = PARAM1;
         bombRange = PARAM2;
     }
-    
+
     public int GetX()
     {
         return x;
     }
-    
+
     public int GetY()
     {
         return y;
     }
-    
+
     public int GetTimer()
     {
         return bombTimer;
     }
-    
+
     public int GetRange()
     {
         return bombRange;
@@ -199,7 +215,7 @@ class Item
     int y;
     int itemType;
     int itemUnknown;
-    
+
     public void Update(int X, int Y, int PARAM1, int PARAM2)
     {
         x = X;
@@ -207,22 +223,22 @@ class Item
         itemType = PARAM1;
         itemUnknown = PARAM2;
     }
-    
+
     public int GetX()
     {
         return x;
     }
-    
+
     public int GetY()
     {
         return y;
     }
-    
+
     public int GetItemType()
     {
         return itemType;
     }
-    
+
     public int GetUnknown()
     {
         return itemUnknown;
@@ -237,69 +253,67 @@ class Item
  **/
 class Calcs
 {
-    
+
     // Check for value of items in boxes
     public static int BombValue(int x, int y, int bombRange, char[][] grid)
-    {  
+    {
         int output = 0;
-        
+
         // Down
-        for (int i = Math.Min(y+1,grid.Length); i < Math.Min(y+bombRange,grid.Length); i++)
+        for (int i = Math.Min(y + 1, grid.Length); i < Math.Min(y + bombRange, grid.Length); i++)
         {
             if (grid[i][x] != '.')
             {
-                if (grid[i][x] != 'X') output += (int)Char.GetNumericValue(grid[i][x]);
+                if (grid[i][x] != 'X') output += (int)Char.GetNumericValue(grid[i][x])+1;
                 break;
             }
         }
-        
+
         // Right
-        for (int i = Math.Min(x+1,grid[y].Length); i < Math.Min(x+bombRange,grid[y].Length); i++)
+        for (int i = Math.Min(x + 1, grid[y].Length); i < Math.Min(x + bombRange, grid[y].Length); i++)
         {
             if (grid[y][i] != '.')
             {
-                if (grid[y][i] != 'X') output += (int)Char.GetNumericValue(grid[y][i]);
+                if (grid[y][i] != 'X') output += (int)Char.GetNumericValue(grid[y][i])+1;
                 break;
             }
         }
-        
+
         // Up
-        for (int i = Math.Max(y-1,0); i > Math.Max(y-bombRange,-1); i--)
+        for (int i = Math.Max(y - 1, 0); i > Math.Max(y - bombRange, -1); i--)
         {
             if (grid[i][x] != '.')
             {
-                if (grid[i][x] != 'X') output += (int)Char.GetNumericValue(grid[i][x]);
+                if (grid[i][x] != 'X') output += (int)Char.GetNumericValue(grid[i][x])+1;
                 break;
             }
         }
-        
+
         // Left
-        for (int i = Math.Max(x-1,0); i > Math.Max(x-bombRange,-1); i--)
+        for (int i = Math.Max(x - 1, 0); i > Math.Max(x - bombRange, -1); i--)
         {
             if (grid[y][i] != '.')
             {
-                if (grid[y][i] != 'X') output += (int)Char.GetNumericValue(grid[y][i]);
+                if (grid[y][i] != 'X') output += (int)Char.GetNumericValue(grid[y][i])+1;
                 break;
             }
         }
-        
+
+        if (output > 9) output = 9;
+
         return output;
-        
+
     }
-    
-    
-    
+
+
+
     // Add Bomb explosion as Xs to grid
-    public static char[][] AddBombExplosion(char[][] grid, Bomb bomb)
+    public static char[][] AddBombExplosion(char[][] grid, int x, int y, int bombRange)
     {
         char[][] output = grid;
 
-        int x = bomb.GetX();
-        int y = bomb.GetY();
-        int bombRange = bomb.GetRange();
-
         // Down
-        for (int i = Math.Min(y, grid.Length-1); i < Math.Min(y + bombRange, grid.Length); i++)
+        for (int i = Math.Min(y, grid.Length - 1); i < Math.Min(y + bombRange, grid.Length); i++)
         {
             if (grid[i][x] == 'X') break;
             output[i][x] = 'X';
@@ -329,15 +343,15 @@ class Calcs
         return output;
     }
 
-    
-    
+
+
     // Calc Bomb Value Table
-    public static char[][] BombValueTable(char[][] grid, int bombRange)
+    public static char[][] BombValueGrid(char[][] grid, int bombRange)
     {
-        
+
         char[][] output = new char[grid.Length][];
         for (int i = 0; i < grid.Length; i++) output[i] = new char[grid[i].Length];
-        
+
         for (int i = 0; i < grid.Length; i++)
         {
             for (int j = 0; j < grid[i].Length; j++)
@@ -352,10 +366,58 @@ class Calcs
                 }
             }
         }
-            
+
         return output;
     }
 
+
+
+    // Check if bomb location is valid
+    public static bool ValidBomb(char[][] gridValue, char[][] gridWalkable, int x, int y, int bombRange)
+    {
+        if (gridWalkable[y][x] == 'W')
+        {
+            gridWalkable = AddBombExplosion(gridValue, x, y, bombRange);
+            for (int i = 0; i < gridWalkable.Length; i++)
+            {
+                for (int j = 0; j < gridWalkable[i].Length; j++)
+                {
+                    if (gridWalkable[i][j] == 'W')
+                    {
+                        return true;
+                    }
+                }
+            }
+        }
+
+        return false;
+    }
+
+
+    
+    // Check Walkable Area
+    public static char[][] WalkableGrid(char[][] gridValue, int x, int y)
+    {
+        char[][] output = new char[gridValue.Length][];
+        for (int i = 0; i < gridValue.Length; i++) output[i] = new char[gridValue[i].Length];
+
+        output = gridValue;
+
+        if (x > output[1].Length-1 || x < 0) return output;
+        else if (y > output.Length-1 || y < 0) return output;
+
+
+        if (output[y][x] != 'X' && output[y][x] != 'W')
+        {
+            output[y][x] = 'W';
+            WalkableGrid(output, x + 1, y);
+            WalkableGrid(output, x - 1, y);
+            WalkableGrid(output, x, y + 1);
+            WalkableGrid(output, x, y - 1);
+        }
+
+        return output;
+    }
 
 
     // Debug Display Grid
@@ -371,5 +433,5 @@ class Calcs
             Console.Error.WriteLine("");
         }
     }
-    
+
 }
